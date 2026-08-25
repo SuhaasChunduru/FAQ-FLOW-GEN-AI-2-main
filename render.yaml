@@ -1,0 +1,51 @@
+# Render Blueprint — commit this at the REPO ROOT of FAQ-FLOW-GEN-AI-2-main.
+# Render dashboard -> New -> Blueprint -> pick this repo.
+#
+# Service URLs are derived from the names below, so the two services can
+# reference each other before either exists. If Render says a name is taken,
+# change it here AND in the matching URL further down.
+services:
+  - type: web
+    name: faqflow-api
+    runtime: python
+    plan: free
+    rootDir: faqflow-ai/backend
+    buildCommand: pip install -r requirements.txt
+    # init_db is idempotent (create_all + seed-if-missing), so it runs each boot
+    # instead of at build time, when the database may not be attached yet.
+    startCommand: python init_db.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false                  # paste your key in the Render dashboard
+      - key: FRONTEND_ORIGIN
+        value: https://faqflow-web.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: faqflow-db
+          property: connectionString
+
+  - type: web
+    name: faqflow-web
+    runtime: node
+    plan: free
+    rootDir: faqflow-ai/frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start -- -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "20.11.1"
+      # Next.js inlines NEXT_PUBLIC_* at build time, so this must be set here,
+      # not added in the dashboard afterwards.
+      - key: NEXT_PUBLIC_API_URL
+        value: https://faqflow-api.onrender.com
+
+databases:
+  - name: faqflow-db
+    plan: free
+    databaseName: faqflow
+    user: faqflow

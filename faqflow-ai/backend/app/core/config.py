@@ -14,7 +14,9 @@ class Settings(BaseSettings):
     
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        return self.DATABASE_URL
+        # Render hands out postgresql://, which SQLAlchemy maps to psycopg2.
+        # Only psycopg3 is installed, so point it at that driver instead.
+        return self.DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
     
     # CHROMA DB
     CHROMA_HOST: str = "localhost"
